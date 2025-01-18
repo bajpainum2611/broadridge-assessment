@@ -1,0 +1,58 @@
+version: '3.8'                                                                                                           # Specify the Docker Compose file format version.
+
+services:
+  frontend:
+    image: nginx:latest                                                                                                  # Use the latest Nginx image from Docker Hub.
+    ports:
+      - "80:80"                                                                                                          # Map port 80 of the host to port 80 of the container.
+    volumes:
+      - ./static:/usr/share/nginx/html                                                                                   # Serve static files from the host directory.
+    networks:
+      - frontend_backend                                                                                                 # Connect the frontend to the frontend_backend network.
+
+  backend:
+    build: ./backend                                                                                                     # Build Dockerfile in backend services.
+    environment:
+      - DATABASE_HOST=database                                                                                                 # Set the database host.
+      - DATABASE_USER=${DB_USER}                                                                                               # Set the database user from an environment variable.
+      - DATABASE_PASSWORD_FILE=/run/secrets/db_password                                                                        # Use a Docker secret for the database password.
+      - DATABASE_NAME=${DB_NAME}                                                                                               # Set Database name from the environment variable
+    
+    secrets:
+      - db_password                                                                                                      # Use the db_password secret for the backend service.
+    networks:
+      - frontend_backend  # Connect the backend to the frontend_backend network.
+      - backend_database  # Connect the backend to the backend_database network.
+    
+    
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"  # Limit the CPU usage to 0.5 cores.
+          memory: "512M"  # Limit the memory usage to 512MB.
+
+ 
+  database:
+    image: postgres:latest                                                     
+    environment:
+      POSTGRES_USER: ${DB_USER}                                                                                          # Set the PostgreSQL user from an environment variable.(.env file)
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password                                                                   # Use a Docker secret for the PostgreSQL password.
+      POSTGRES_DB: ${DB_NAME}                                                                                            # Set the PostgreSQL database name from an environment variable.
+    
+    volumes:
+      - db_data:/var/lib/postgresql/data                                                                                 # Persist the PostgreSQL data using a volume.
+    secrets:
+      - db_password                                                                                                      # Use the db_password secret for the database service.
+    networks:
+      - backend_database                                                                                                 # Connect the database to the backend_database network.
+
+networks:
+  frontend_backend:                                                                                                      # Define the frontend_backend network for frontend and backend communication.
+  backend_database:                                                                                                      # Define the backend_database network for backend and database communication.
+
+volumes:
+  db_data:                                                                                                               # Define the volume for persisting PostgreSQL data.
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt                                                                                      # Specify the file containing the database password secret.
